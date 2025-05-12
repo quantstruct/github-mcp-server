@@ -1,3 +1,7 @@
+# Github MCP Server VIA SSE using supergateway in one Docker container
+
+See Dockerfile and build_and_push.sh
+
 # GitHub MCP Server
 
 The GitHub MCP Server is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/introduction)
