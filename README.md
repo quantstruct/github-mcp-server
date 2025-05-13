@@ -1,6 +1,11 @@
 # Github MCP Server VIA SSE using supergateway in one Docker container
 
-See Dockerfile and build_and_push.sh
+See Dockerfile and sh scripts. WARNING: Right now project is hard coded to quantstruct.
+```
+gcloud auth login
+sh build_and_push.sh github
+sh deploy_to_cloudrun.sh github
+```
 
 # GitHub MCP Server
 
