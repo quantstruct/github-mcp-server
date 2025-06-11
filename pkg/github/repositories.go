@@ -454,8 +454,14 @@ func GetFileContents(getClient GetClientFn, t translations.TranslationHelperFunc
 			if err != nil {
 				return nil, fmt.Errorf("failed to get GitHub client: %w", err)
 			}
-			opts := &github.RepositoryContentGetOptions{Ref: branch}
-			fileContent, dirContent, resp, err := client.Repositories.GetContents(ctx, owner, repo, path, opts)
+
+			// Use the go-github client to get file/directory contents
+			opts := &github.RepositoryContentGetOptions{}
+			if branch != "" {
+				opts.Ref = branch
+			}
+
+			fileContent, directoryContent, resp, err := client.Repositories.GetContents(ctx, owner, repo, path, opts)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get file contents: %w", err)
 			}
@@ -469,19 +475,23 @@ func GetFileContents(getClient GetClientFn, t translations.TranslationHelperFunc
 				return mcp.NewToolResultError(fmt.Sprintf("failed to get file contents: %s", string(body))), nil
 			}
 
-			var result interface{}
 			if fileContent != nil {
-				result = fileContent
+				// It's a file - return the raw decoded content
+				content, err := fileContent.GetContent()
+				if err != nil {
+					return nil, fmt.Errorf("failed to decode file content: %w", err)
+				}
+				return mcp.NewToolResultText(content), nil
+			} else if directoryContent != nil {
+				// It's a directory - return JSON array of contents
+				r, err := json.Marshal(directoryContent)
+				if err != nil {
+					return nil, fmt.Errorf("failed to marshal directory contents: %w", err)
+				}
+				return mcp.NewToolResultText(string(r)), nil
 			} else {
-				result = dirContent
+				return mcp.NewToolResultError("unexpected response: neither file nor directory content returned"), nil
 			}
-
-			r, err := json.Marshal(result)
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal response: %w", err)
-			}
-
-			return mcp.NewToolResultText(string(r)), nil
 		}
 }
 
