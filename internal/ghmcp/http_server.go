@@ -66,6 +66,10 @@ type HttpServerConfig struct {
 
 	// Custom header name to read installation ID from (defaults to "X-GitHub-Installation-ID")
 	InstallationIDHeader string
+
+	// HeartbeatInterval controls how often the server sends SSE heartbeat pings on the GET listener
+	// Set to 0 to disable heartbeats
+	HeartbeatInterval time.Duration
 }
 
 const installationContextKey = "installation_id"
@@ -96,7 +100,12 @@ func RunHTTPServer(cfg HttpServerConfig) error {
 		return fmt.Errorf("failed to create MCP server: %w", err)
 	}
 
-	httpServer := server.NewStreamableHTTPServer(ghServer)
+	// Configure the streamable HTTP server with optional heartbeat pings
+	var httpOpts []server.StreamableHTTPOption
+	if cfg.HeartbeatInterval > 0 {
+		httpOpts = append(httpOpts, server.WithHeartbeatInterval(cfg.HeartbeatInterval))
+	}
+	httpServer := server.NewStreamableHTTPServer(ghServer, httpOpts...)
 
 	logrusLogger := logrus.New()
 	if cfg.LogFilePath != "" {
