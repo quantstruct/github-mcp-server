@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/github/github-mcp-server/internal/ghmcp"
 	"github.com/github/github-mcp-server/pkg/github"
@@ -84,6 +85,9 @@ var (
 				return fmt.Errorf("failed to unmarshal toolsets: %w", err)
 			}
 
+			// Pre-compute heartbeat interval
+			hbInterval, _ := time.ParseDuration(viper.GetString("http_heartbeat_interval"))
+
 			httpServerConfig := ghmcp.HttpServerConfig{
 				Version:              version,
 				Host:                 viper.GetString("host"),
@@ -101,6 +105,7 @@ var (
 				AppPrivateKey:        appPrivateKey,
 				EnableGitHubAppAuth:  enableGitHubAppAuth,
 				InstallationIDHeader: viper.GetString("installation_id_header"),
+				HeartbeatInterval:    hbInterval,
 			}
 
 			return ghmcp.RunHTTPServer(httpServerConfig)
@@ -133,6 +138,7 @@ func init() {
 	httpCmd.Flags().String("http-address", ":8080", "HTTP server address to bind to")
 	httpCmd.Flags().String("http-mcp-path", "/mcp", "HTTP path for MCP endpoint")
 	httpCmd.Flags().Bool("http-enable-cors", false, "Enable CORS for cross-origin requests")
+	httpCmd.Flags().String("http-heartbeat-interval", "15s", "Interval for SSE heartbeats on GET listener (e.g., 15s; set 0 to disable)")
 
 	// Bind flags to viper
 	_ = viper.BindPFlag("toolsets", rootCmd.PersistentFlags().Lookup("toolsets"))
@@ -149,6 +155,7 @@ func init() {
 	_ = viper.BindPFlag("http_address", httpCmd.Flags().Lookup("http-address"))
 	_ = viper.BindPFlag("http_mcp_path", httpCmd.Flags().Lookup("http-mcp-path"))
 	_ = viper.BindPFlag("http_enable_cors", httpCmd.Flags().Lookup("http-enable-cors"))
+	_ = viper.BindPFlag("http_heartbeat_interval", httpCmd.Flags().Lookup("http-heartbeat-interval"))
 
 	// Add subcommands
 	rootCmd.AddCommand(stdioCmd)
