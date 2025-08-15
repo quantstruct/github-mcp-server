@@ -1,0 +1,64 @@
+# Cloud Build configuration for github-mcp-server
+# Builds the container image, pushes to Artifact Registry, and deploys to Cloud Run
+
+substitutions:
+  _REGION: us-west1
+  _REPOSITORY: mcp
+  _SERVICE: github-mcp-server
+  _GITHUB_ENABLE_GITHUB_APP_AUTH: "true"
+  _GITHUB_APP_ID: "1230727"
+  _GITHUB_HTTP_ADDRESS: "0.0.0.0:8080"
+  _GITHUB_HTTP_MCP_PATH: "/mcp/"
+  _GITHUB_APP_PRIVATE_KEY_SECRET: "quantstruct-canvas_github_app_private_key"
+
+steps:
+  # Build the image
+  - id: "Build Docker image"
+    name: "gcr.io/cloud-builders/docker"
+    env:
+      - "DOCKER_BUILDKIT=1"
+    args:
+      [
+        "build",
+        "-t",
+        "$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY/$_SERVICE:$BUILD_ID",
+        "-f",
+        "Dockerfile",
+        "--build-arg",
+        "VERSION=$BUILD_ID",
+        "."
+      ]
+
+  # Push the image to Artifact Registry
+  - id: "Push Docker image"
+    name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY/$_SERVICE:$BUILD_ID",
+      ]
+
+  # Deploy image to Cloud Run with env vars and secret
+  - id: "Deploy to Cloud Run"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      [
+        "run",
+        "deploy",
+        "$_SERVICE",
+        "--image",
+        "$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPOSITORY/$_SERVICE:$BUILD_ID",
+        "--region",
+        "$_REGION",
+        "--platform",
+        "managed",
+        "--min",
+        "1",
+        "--port",
+        "8080",
+        "--set-env-vars",
+        "GITHUB_ENABLE_GITHUB_APP_AUTH=$_GITHUB_ENABLE_GITHUB_APP_AUTH,GITHUB_APP_ID=$_GITHUB_APP_ID,GITHUB_HTTP_ADDRESS=$_GITHUB_HTTP_ADDRESS,GITHUB_HTTP_MCP_PATH=$_GITHUB_HTTP_MCP_PATH",
+        "--set-secrets",
+        "GITHUB_APP_PRIVATE_KEY=$_GITHUB_APP_PRIVATE_KEY_SECRET:latest"
+      ]
